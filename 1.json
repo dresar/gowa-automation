@@ -1,0 +1,474 @@
+{
+  "name": "GOWA Webhook Central Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gowa-central",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "webhook-central-01",
+      "name": "Webhook Central",
+      "webhookId": "gowa-central-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * ========================================\n * GOWA WEBHOOK CENTRAL HANDLER\n * ========================================\n * Sistem webhook terpusat untuk automation WhatsApp\n * Mendukung: Auto Reply, Command, Media Processing, VIP Access\n * Version: 1.0.0\n * ========================================\n */\n\n// ============================================\n// KONFIGURASI UTAMA\n// ============================================\nconst CONFIG = {\n  // Nomor bot (untuk deteksi self-message)\n  BOT_NUMBER: \"6282392115909\",\n  \n  // Sub-workflow URLs (ganti dengan URL n8n Anda)\n  WORKFLOWS: {\n    AUTO_REPLY: \"http://localhost:5678/webhook/auto-reply\",\n    COMMAND: \"http://localhost:5678/webhook/command\",\n    AI_CHAT: \"http://localhost:5678/webhook/ai-chat\",\n    MEDIA_HANDLER: \"http://localhost:5678/webhook/media\",\n    GROUP_HANDLER: \"http://localhost:5678/webhook/group\",\n    SEND_TO_SELF: \"http://localhost:5678/webhook/send-to-self\",\n    VIP_HANDLER: \"http://localhost:5678/webhook/vip\"\n  },\n  \n  // Blacklist (Official Accounts)\n  BLACKLIST_KEYWORDS: [\n    \"rumahweb\", \"telkomsel\", \"indosat\", \"tri\", \"xl\",\n    \"bank\", \"bca\", \"mandiri\", \"bri\", \"bni\",\n    \"otp\", \"auth\", \"verify\", \"facebook\", \"whatsapp\",\n    \"official\", \"team\", \"lazada\", \"shopee\", \"tokopedia\"\n  ],\n  \n  // Command prefix\n  COMMAND_PREFIXES: [\"!\", \"/\", \".\"],\n  \n  // Timezone\n  TIMEZONE: \"Asia/Jakarta\"\n};\n\n// ============================================\n// UTILITY FUNCTIONS\n// ============================================\n\nfunction normalizePhone(phone) {\n  if (!phone) return \"\";\n  let cleaned = String(phone)\n    .split(':')[0]\n    .split('@')[0]\n    .replace(/[^0-9]/g, '');\n  if (cleaned.startsWith(\"08\")) {\n    cleaned = \"62\" + cleaned.substring(1);\n  }\n  if (!cleaned.startsWith(\"62\")) {\n    cleaned = \"62\" + cleaned;\n  }\n  return cleaned;\n}\n\nfunction parseCommand(text) {\n  const regex = /^([.!/])\\s*(\\S+)(?:\\s+(.*))?$/s;\n  const match = text.trim().match(regex);\n  if (!match) {\n    return { isCommand: false, prefix: null, command: null, args: null };\n  }\n  return {\n    isCommand: true,\n    prefix: match[1],\n    command: match[2].toLowerCase(),\n    args: match[3] || null\n  };\n}\n\nfunction isOfficialAccount(name) {\n  if (!name) return false;\n  const lowerName = name.toLowerCase();\n  return CONFIG.BLACKLIST_KEYWORDS.some(keyword => \n    lowerName.includes(keyword)\n  );\n}\n\nfunction getTimestamp() {\n  return new Date().toLocaleString('id-ID', { \n    timeZone: CONFIG.TIMEZONE \n  });\n}\n\n// ============================================\n// WEBHOOK PAYLOAD PARSER\n// ============================================\n\nfunction extractMessageContent(data) {\n  let type = 'text';\n  let text = '';\n  let caption = '';\n  let mediaUrl = '';\n  \n  if (data.message?.text || data.text || data.body) {\n    type = 'text';\n    text = data.message?.text || data.text || data.body || '';\n  }\n  else if (data.image || data.message?.imageMessage) {\n    type = 'image';\n    const img = data.image || data.message?.imageMessage;\n    caption = img.caption || '';\n    mediaUrl = img.media_path || img.url || '';\n    text = caption;\n  }\n  else if (data.video || data.message?.videoMessage) {\n    type = 'video';\n    const vid = data.video || data.message?.videoMessage;\n    caption = vid.caption || '';\n    mediaUrl = vid.media_path || vid.url || '';\n    text = caption;\n  }\n  else if (data.audio || data.message?.audioMessage) {\n    type = 'audio';\n    const aud = data.audio || data.message?.audioMessage;\n    mediaUrl = aud.media_path || aud.url || '';\n  }\n  else if (data.ptt || data.message?.pttMessage) {\n    type = 'ptt';\n    const ptt = data.ptt || data.message?.pttMessage;\n    mediaUrl = ptt.media_path || ptt.url || '';\n  }\n  else if (data.document || data.message?.documentMessage) {\n    type = 'document';\n    const doc = data.document || data.message?.documentMessage;\n    caption = doc.caption || doc.fileName || '';\n    mediaUrl = doc.media_path || doc.url || '';\n    text = caption;\n  }\n  else if (data.location || data.message?.locationMessage) {\n    type = 'location';\n    const loc = data.location || data.message?.locationMessage;\n    text = `Location: ${loc.latitude}, ${loc.longitude}`;\n  }\n  else if (data.contact || data.message?.contactMessage) {\n    type = 'contact';\n    const contact = data.contact || data.message?.contactMessage;\n    text = `Contact: ${contact.displayName || contact.name || 'Unknown'}`;\n  }\n  \n  const normalized = String(text || caption || '').trim().replace(/\\s+/g, ' ');\n  \n  return {\n    type: type,\n    text: text,\n    caption: caption,\n    mediaUrl: mediaUrl,\n    normalized: normalized\n  };\n}\n\nfunction parseWebhookPayload(payload) {\n  try {\n    const body = payload.body || payload;\n    const event = body.event || \"message\";\n    const data = body.payload || body;\n    \n    const messageId = data.message?.id || data.id || \"\";\n    const timestamp = data.timestamp || data.message?.timestamp || Date.now();\n    \n    const chatId = data.chat_id || data.from || data.key?.remoteJid || \"\";\n    const participantJid = data.participant || data.sender_id || \"\";\n    const pushName = data.pushname || data.notifyName || data.sender_name || \"Unknown\";\n    \n    const isGroup = chatId.endsWith('@g.us') || chatId.startsWith('120') || chatId.length > 18;\n    const isStatus = chatId.includes('status@broadcast');\n    \n    const senderPhone = normalizePhone(isGroup ? participantJid : chatId);\n    const targetChatId = normalizePhone(chatId);\n    \n    const isFromMe = (\n      data.from_me === true ||\n      data.key?.fromMe === true ||\n      senderPhone === CONFIG.BOT_NUMBER\n    );\n    \n    const isAck = event === 'message.ack';\n    const messageContent = extractMessageContent(data);\n    \n    return {\n      status: isFromMe || isAck || isStatus ? 'IGNORED' : 'VALID',\n      event: event,\n      timestamp: timestamp,\n      chatId: targetChatId,\n      senderPhone: senderPhone,\n      isGroup: isGroup,\n      isStatus: isStatus,\n      pushName: pushName,\n      isFromMe: isFromMe,\n      isAck: isAck,\n      isOfficialAccount: isOfficialAccount(pushName),\n      messageId: messageId,\n      messageType: messageContent.type,\n      messageText: messageContent.text,\n      normalizedText: messageContent.normalized,\n      caption: messageContent.caption,\n      mediaUrl: messageContent.mediaUrl,\n      command: parseCommand(messageContent.text || messageContent.caption || \"\"),\n      _raw: data,\n      _timestamp: getTimestamp()\n    };\n    \n  } catch (error) {\n    return {\n      status: 'ERROR',\n      error: error.message,\n      _raw: payload\n    };\n  }\n}\n\n// ============================================\n// ROUTING LOGIC\n// ============================================\n\nfunction determineWorkflowRoute(parsedData) {\n  if (parsedData.status !== 'VALID') {\n    return { route: 'IGNORED', reason: parsedData.status };\n  }\n  \n  if (parsedData.isOfficialAccount) {\n    return { route: 'IGNORED', reason: 'OFFICIAL_ACCOUNT' };\n  }\n  \n  if (parsedData.event.startsWith('group.')) {\n    return { route: 'GROUP_HANDLER', priority: 'high' };\n  }\n  \n  if (parsedData.command.isCommand) {\n    const cmd = parsedData.command.command;\n    if (cmd === 'sendme' || cmd === 'tome') {\n      return { route: 'SEND_TO_SELF', priority: 'high' };\n    }\n    return { route: 'COMMAND', priority: 'high' };\n  }\n  \n  if (parsedData.messageType !== 'text') {\n    return { route: 'MEDIA_HANDLER', priority: 'medium' };\n  }\n  \n  if (parsedData.normalizedText.length < 50) {\n    return { route: 'AUTO_REPLY', priority: 'low' };\n  }\n  \n  return { route: 'AI_CHAT', priority: 'medium' };\n}\n\n// ============================================\n// MAIN PROCESSING\n// ============================================\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const payload = item.json;\n  const startTime = Date.now();\n  \n  const parsedData = parseWebhookPayload(payload);\n  const routing = determineWorkflowRoute(parsedData);\n  \n  results.push({\n    json: {\n      // Parsed data untuk routing\n      ...parsedData,\n      \n      // Routing decision\n      route: routing.route,\n      priority: routing.priority || 'none',\n      reason: routing.reason || '',\n      \n      // Performance\n      processingTime: Date.now() - startTime,\n      processedAt: getTimestamp(),\n      \n      // Workflow URLs untuk HTTP Request nodes\n      workflowUrl: CONFIG.WORKFLOWS[routing.route] || null\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "code-parser-01",
+      "name": "Parse & Route Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "IGNORED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IGNORED"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "COMMAND",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "COMMAND"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "AUTO_REPLY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUTO_REPLY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "AI_CHAT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AI_CHAT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "MEDIA_HANDLER",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MEDIA"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "GROUP_HANDLER",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "GROUP"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "SEND_TO_SELF",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SEND_TO_SELF"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "switch-router-01",
+      "name": "Route to Sub-Workflow"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        80
+      ],
+      "id": "noop-ignored-01",
+      "name": "Ignored"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/command' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        180
+      ],
+      "id": "http-command-01",
+      "name": "➡️ Command Handler",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/auto-reply' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        280
+      ],
+      "id": "http-autoreply-01",
+      "name": "➡️ Auto Reply",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/ai-chat' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        380
+      ],
+      "id": "http-aichat-01",
+      "name": "➡️ AI Chat",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/media' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        480
+      ],
+      "id": "http-media-01",
+      "name": "➡️ Media Handler",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/group' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        580
+      ],
+      "id": "http-group-01",
+      "name": "➡️ Group Handler",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.workflowUrl || 'http://localhost:5678/webhook/send-to-self' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        680
+      ],
+      "id": "http-sendtoself-01",
+      "name": "➡️ Send To Self",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "n8n Internal Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Central": {
+      "main": [
+        [
+          {
+            "node": "Parse & Route Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Route Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route to Sub-Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Sub-Workflow": {
+      "main": [
+        [
+          {
+            "node": "Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ Command Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ AI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ Media Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ Group Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "➡️ Send To Self",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-22T08:31:00.000Z",
+  "versionId": "central-webhook-v1"
+}

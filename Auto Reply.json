@@ -1,0 +1,878 @@
+{
+  "name": "Auto Reply",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gowa-central",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -448,
+        -128
+      ],
+      "id": "2aa28ed5-651a-4b81-950a-e93f27479a16",
+      "name": "Webhook",
+      "webhookId": "57d3eb70-dfb8-4fe9-9f60-7b1ff344626c"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CxkGeEa-xSTR41FvDwcYJzcKdDBl8LY9sm7rz8SYk3c",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1359078687,
+          "mode": "list",
+          "cachedResultName": "Keyword-JawabanOtomatis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CxkGeEa-xSTR41FvDwcYJzcKdDBl8LY9sm7rz8SYk3c/edit#gid=1359078687"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Keyword",
+              "lookupValue": "={{ $('code').item.json.normalizedMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        -128
+      ],
+      "id": "eced4cd2-d4a6-4dfd-b16e-cd32d55528ed",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2dAM3iywgUbVWHW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('code').item.json.userPhone }}",
+        "message": "={{ $('jawaban_final').item.json.jawaban_final }}",
+        "replyMessageId": "={{ $('Webhook').item.json.body.message.id }}"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        4032,
+        112
+      ],
+      "id": "7b3878ea-0f81-4bae-b6cc-5c7070183e3c",
+      "name": "Send a text message1",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "301e01c2-cfab-4673-873c-6cf1cc71ed9a",
+              "leftValue": "={{ $('Get row(s) in sheet').item.json['Jawaban Otomatis'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        -128
+      ],
+      "id": "4c94a384-36f7-48f7-9d9e-46844ff63434",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "getChatMessages",
+        "chatJid": "={{ $('code').item.json.userPhone }}@s.whatsapp.net",
+        "search": "="
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -32
+      ],
+      "id": "669801ad-25df-474f-a72c-9a73f1fa8255",
+      "name": "Get messages from a specific chat",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('code').item.json.userPhone }}",
+        "message": "={{ $('Get row(s) in sheet').item.json['Jawaban Otomatis'] }}",
+        "replyMessageId": "={{ $('code').item.json.messageId }}"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -224
+      ],
+      "id": "ca237ad7-dcf4-4e11-92ef-f5148d0d83e3",
+      "name": "autoreply",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=1CxkGeEa-xSTR41FvDwcYJzcKdDBl8LY9sm7rz8SYk3c",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1359078687,
+          "mode": "list",
+          "cachedResultName": "Keyword-JawabanOtomatis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CxkGeEa-xSTR41FvDwcYJzcKdDBl8LY9sm7rz8SYk3c/edit#gid=1359078687"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Keyword": "={{ $('Webhook').item.json.body.message.text }}",
+            "Jawaban Otomatis": "={{ $json.jawaban_final }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Keyword",
+              "displayName": "Keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Jawaban Otomatis",
+              "displayName": "Jawaban Otomatis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3584,
+        112
+      ],
+      "id": "90dfa29e-d0b9-479a-8dec-3af32ab0a331",
+      "name": "simpan ai reply",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2dAM3iywgUbVWHW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "029afe66-9014-41d3-9c22-28b50a50d3c4",
+              "name": "jawaban_final",
+              "value": "={{ $json.content?.parts?.[0]?.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3360,
+        112
+      ],
+      "id": "7d1b9d1f-7ad9-4cd1-b4c4-c4d7984353ba",
+      "name": "jawaban_final"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === KONFIGURASI ===\nconst maxHistory = 20; // Batas jumlah chat\nconst myName = \"Eka\";  \nconst userLabel = \"User\"; \n\n// DAFTAR KATA KUNCI YANG HARUS DIHAPUS DARI HISTORY\n// Jika pesan mengandung kata-kata ini, dianggap bukan obrolan, tapi fitur bot.\nconst blacklistedKeywords = [\n  \"REMINDER SYSTEM\",\n  \"VIP MANAGEMENT\",\n  \"SYSTEM TOOLS\",\n  \"FITUR AI (GEMINI)\",\n  \"STATUS MONITOR\",\n  \"Connection Info\",\n  \"DEVICE INFORMATION\",\n  \"Pong!\",\n  \"TIKTOK NO WATERMARK\",\n  \"INFO GEMPA\",\n  \"LAPORAN CUACA\",\n  \"JADWAL SHOLAT\",\n  \"DAFTAR PENGINGAT\",\n  \"VIP MEMBER\",\n  \"PENGHAPUSAN SUKSES\"\n];\n\n// 1. AMBIL DATA\nconst inputData = $input.first().json;\nconst rawMessages = inputData.results?.data || []; \n\nlet historyList = [];\n\n// 2. LOOPING PESAN\nfor (const msg of rawMessages) {\n  \n  // Ambil isi pesan\n  const text = msg.content || \"\";\n\n  // === FILTER 1: SKIP PESAN KOSONG ===\n  if (!text.trim()) continue;\n\n  // === FILTER 2: SKIP MEDIA ===\n  // Kalau pesan berupa gambar/video/stiker, skip.\n  if (msg.media_type && msg.media_type !== \"\") continue;\n\n  // === FILTER 3: LOGIKA BERDASARKAN PENGIRIM ===\n  \n  // A. JIKA PENGIRIM ADALAH USER (ORANG LAIN)\n  if (!msg.is_from_me) {\n    // Skip jika user mengirim Command (diawali !, ., #, /)\n    // Contoh: \"!menu\", \".ping\" -> HILANGKAN\n    if (/^[!./#]/.test(text.trim())) continue;\n  }\n\n  // B. JIKA PENGIRIM ADALAH BOT (KITA SENDIRI)\n  if (msg.is_from_me) {\n    // Cek apakah pesan ini adalah \"Template Menu\" atau \"Laporan Sistem\"\n    // Kita cek apakah teks mengandung salah satu kata dari blacklistedKeywords\n    const isSystemMessage = blacklistedKeywords.some(keyword => text.includes(keyword));\n    \n    // Jika iya (misal ada tulisan \"REMINDER SYSTEM\"), maka SKIP.\n    if (isSystemMessage) continue;\n  }\n\n  // === FORMATTING ===\n  const sender = msg.is_from_me ? myName : userLabel;\n\n  // Masukkan ke daftar history\n  historyList.push(`${sender}: ${text}`);\n  \n  // Cek Limit\n  if (historyList.length >= maxHistory) break;\n}\n\n// 3. URUTKAN KRONOLOGIS (Lama -> Baru)\nhistoryList.reverse();\n\n// 4. GABUNG JADI TEXT\nconst finalHistory = historyList.join(\"\\n\");\n\n// 5. OUTPUT\nreturn {\n  json: {\n    history_context: finalHistory\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -32
+      ],
+      "id": "c73f12c5-15ce-4bf8-833d-c54c75a63a1d",
+      "name": "historychat"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "l3nVHGNBLI7iAORj",
+          "mode": "list",
+          "cachedResultName": "vvipuser",
+          "cachedResultUrl": "/projects/AdZldNOa7Ply7g9u/datatables/l3nVHGNBLI7iAORj"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone",
+              "keyValue": "={{ $('code').item.json.userPhone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        -32
+      ],
+      "id": "fc839afd-9572-42da-9382-b13d3f34002f",
+      "name": "Check_Status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9a732c39-76d2-4cb5-b042-d5353cce6b59",
+              "leftValue": "={{ $('Check_Status').item.json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -32
+      ],
+      "id": "6dd3a21f-eef3-4e1b-ba93-8aa5aa9f9726",
+      "name": "Filter_AutoReply"
+    },
+    {
+      "parameters": {
+        "operation": "sendChatPresence",
+        "phoneNumber": "={{ $('code').item.json.userPhone }}"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -32
+      ],
+      "id": "8808bb17-0955-4182-8996-1a073e607950",
+      "name": "Send chat presence typing indicator",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendChatPresence",
+        "phoneNumber": "={{ $('code').item.json.userPhone }}",
+        "chatPresenceAction": "stop"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        3808,
+        112
+      ],
+      "id": "df82d187-f770-4d83-9095-3e660e2ec8be",
+      "name": "Send chat presence typing indicator1",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const body = item.json.body || {};\n  \n  // === 1. PASTIKAN ADA OBJEK PESAN ===\n  const msg = body.message;\n  if (!msg) {\n    continue;\n  }\n\n  // === 2. FILTER DIRI SENDIRI (ANTI-LOOP) ===\n  // Cek key.fromMe atau body.fromMe\n  const key = body.key || msg.key || {};\n  // Jika terdeteksi dari bot sendiri, skip.\n  if (key.fromMe === true || body.fromMe === true) {\n    continue; \n  }\n\n  // === 3. FILTER GRUP & STATUS ===\n  const remoteJid = key.remoteJid || body.from || body.chat_id || \"\";\n  if (remoteJid.includes(\"@g.us\") || remoteJid.includes(\"status@broadcast\")) {\n    continue;\n  }\n\n  // === 4. AMBIL TEKS (BAGIAN INI YANG DIPERBAIKI) ===\n  let text = \"\";\n\n  // Cek struktur JSON kamu (body.message.text)\n  if (msg.text) {\n    text = msg.text; \n  } \n  // Cek struktur standar Baileys (conversation)\n  else if (msg.conversation) {\n    text = msg.conversation;\n  } \n  // Cek pesan panjang/reply\n  else if (msg.extendedTextMessage && msg.extendedTextMessage.text) {\n    text = msg.extendedTextMessage.text;\n  }\n\n  // Jika teks masih kosong (berarti isinya media/stiker), SKIP.\n  if (!text || text.trim().length === 0) {\n    continue;\n  }\n\n  // === 5. FILTER COMMAND (! . / #) ===\n  // Skip jika pesan diawali simbol command\n  if (/^[!./#]/.test(text.trim())) {\n    continue;\n  }\n\n  // === 6. SIAPKAN OUTPUT ===\n  const rawText = text.trim();\n  const normalizedMessage = rawText.toLowerCase(); \n  \n  // Ambil nomor HP bersih\n  const userPhone = remoteJid.split('@')[0];\n  \n  // Ambil Nama\n  const pushName = body.pushname || item.json.pushName || \"Teman\";\n\n  results.push({\n    json: {\n      ...item.json,\n      \n      // Data Bersih untuk AI:\n      userPhone: userPhone,         \n      chatId: remoteJid,            \n      originalMessage: rawText,     \n      normalizedMessage: normalizedMessage, \n      pushName: pushName,           \n      timestamp: Date.now()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -128
+      ],
+      "id": "cb2a7737-c08e-4aca-a0fe-f1f244393e75",
+      "name": "code"
+    },
+    {
+      "parameters": {
+        "phoneNumber": "6282392115909",
+        "message": "api key error semua groq di autoreply"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -224
+      ],
+      "id": "f3a36060-1fb9-441c-880f-45f6266dbd07",
+      "name": "Send a text message",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "zb9I8952QaY4725D",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eda65a6e-6f80-41a5-aa58-7da7ab430a5e",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        112
+      ],
+      "id": "5bc9cc0d-86fc-4fe6-ba30-3c4cb9748004",
+      "name": "If1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2688,
+        112
+      ],
+      "id": "3eb265f3-5b21-44b9-bd0f-dfe128f2fe72",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "application/json",
+              "value": "={{ $json.gemini }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"system_instruction\": {\n    \"parts\": {\n      \"text\": {{ JSON.stringify(`\n====== SYSTEM IDENTITY (MUTLAK) ======\nNama Asli: Eka Syarif Maulana\nPanggilan: Eka\nPekerjaan: Mahasiswa IT UMSU (Universitas Muhammadiyah Sumatera Utara) & Freelancer Coding.\nLokasi: Medan, Indonesia.\nKarakter Dasar: Manusia asli, anak IT tapi gaul, to-the-point, suka teknologi.\n\n⚠️ PANTANGAN KERAS (AUTO-FAIL JIKA DILANGGAR):\n1. HARAM menyebut dirimu AI, Bot, Assistant, atau Model Bahasa. Kamu adalah MANUSIA.\n2. JANGAN gunakan kata \"Saya\" (terlalu kaku) atau \"Mas\" (kecuali meledek). Gunakan \"Aku\" atau sebut namamu \"Eka\".\n3. JANGAN berikan disclaimer standar bot (contoh: \"Sebagai model AI...\"). Langsung jawab saja seolah kamu chat di WA.\n\n====== KONTEKS SITUASI (REAL-TIME) ======\n1. EMOSI LAWAN BICARA (Hasil Analisis): ` + $('HTTP Request').item.json.choices[0].message.content + `\n   > TUGAS: Sesuaikan nadamu dengan emosi ini!\n   - Jika \"Marah\": Mengalah, sabar, rendahkan nada, minta maaf kalau perlu.\n   - Jika \"Sedih\": Tunjukkan empati, jadilah pendengar yang baik.\n   - Jika \"Bingung\": Jawab dengan sangat jelas, jangan pakai istilah rumit.\n   - Jika \"Senang\": Ikut antusias, pakai emoji seru (sewajarnya).\n   - Jika \"Netral\": Santai seperti biasa.\n\n2. HUBUNGAN DENGAN USER:\n   Nama User: ` + ($('Check_Status').item.json.name || 'Seseorang') + `\n   Status Hubungan: ` + ($('Check_Status').item.json.role || 'teman') + `\n\n====== INSTRUKSI PERAN (BERDASARKAN STATUS) ======\nKamu harus bertindak sesuai status hubungan di atas:\n\n[JIKA STATUS = PACAR]\n- Vibe: Romantis, manja, protektif, bucin.\n- Panggilan: \"Yang\", \"Sayang\", atau \"Beb\".\n- Contoh: \"Iya sayang, aku baru selesai koding nih. Kamu udah makan?\"\n\n[JIKA STATUS = PDKT / CALON PACAR]\n- Vibe: Cool, agak jual mahal, jutek TAPI perhatian (Tsundere).\n- Panggilan: Panggil NAMA saja. (JANGAN panggil Sayang/Cantik dulu).\n- Logika: Tunjukkan peduli lewat tindakan, bukan rayuan gombal.\n- Contoh: \"Jangan begadang terus, nanti sakit. Aku gak mau repot jenguk.\"\n\n[JIKA STATUS = MANTAN]\n- Vibe: Dingin, singkat, malas meladeni, cuek bebek.\n- Panggilan: \"Lu\", \"Kamu\", atau Nama.\n- Contoh: \"Gak usah bahas masa lalu deh. Penting gak?\"\n\n[JIKA STATUS = TEMAN / LAINNYA]\n- Vibe: Asik, kawan tongkrongan, solid, santai.\n- Panggilan: \"Bro\", \"Wak\", \"Coy\", atau Nama.\n- Contoh: \"Woi bro, aman? Lagi ngerjain tugas nih aku.\"\n\n====== ATURAN PANJANG PESAN (THE GOLDEN RULE) ======\n1. MODE CHAT SANTAI (Default) -> WAJIB 1 KALIMAT!\n   - Jawaban harus pendek, seringkas notifikasi WA.\n   - Jangan bertele-tele. Jangan basa-basi busuk.\n   - Contoh Benar: \"Lagi santai aja nih di kosan.\"\n   - Contoh Salah: \"Halo, aku lagi santai di kosan nih sambil dengerin lagu, kamu sendiri lagi ngapain disana?\" (KEPANJANGAN!)\n\n2. MODE TANYA ILMU / TUGAS / BERITA -> BOLEH PANJANG\n   - HANYA jika user bertanya tentang coding, tugas kuliah, fakta, atau berita terkini.\n   - Jelaskan dengan lengkap tapi tetap dengan gaya bahasa Eka (bukan gaya Wikipedia).\n\n====== PENGGUNAAN DATA INTERNET ======\nATURAN PAKAI DATA:\n- HANYA gunakan jika user bertanya berita/fakta yang Eka tidak tahu.\n- JANGAN COPY-PASTE mentah-mentah. Ceritakan ulang seolah kamu baru membacanya di medsos/berita.\n- DILARANG ngomong: \"Berdasarkan hasil pencarian\", \"Menurut data Google\".\n- Ganti dengan: \"Eh aku baru baca sih...\", \"Katanya...\", \"Denger-denger...\"\n`) }}\n    }\n  },\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": {{ JSON.stringify(\"DATA GOOGLE (Jika Perlu):\\n\" + JSON.stringify($('SerpAPI').item.json.organic_results || []) + \"\\n\\nRIWAYAT CHAT:\\n\" + $('historychat').item.json.history_context + \"\\n\\nPESAN USER:\\n\" + $('code').item.json.originalMessage) }}\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 800\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2912,
+        -32
+      ],
+      "id": "52db64e5-aa41-401c-8f86-1d3c5d5fe83c",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI",
+          "mode": "list",
+          "cachedResultName": "Api Keys",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Api Keys",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        -32
+      ],
+      "id": "37fa676a-9cf3-4fea-87d1-090d503a66ef",
+      "name": "ambil apikey",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2dAM3iywgUbVWHW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1792,
+        -32
+      ],
+      "id": "bf48dfcd-02b1-40f8-842a-ac7190aaa49f",
+      "name": "loop api"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.groq }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Kamu adalah sistem analisis emosi. TUGAS: Baca riwayat chat berikut (maksimal 50 pesan terakhir) dan tentukan EMOSI DOMINAN user saat ini. \\n\\nPILIHAN JAWABAN (Pilih Satu): \\n- Marah\\n- Sedih\\n- Senang\\n- Netral\\n- Bingung\\n- Kecewa\\n- Antusias\\n\\nATURAN:\\n1. HANYA jawab dengan SATU KATA dari pilihan di atas.\\n2. Jangan berikan penjelasan.\\n3. Fokus pada pesan terakhir dari User.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"RIWAYAT CHAT:\\n\" + $('historychat').item.json.history_context + \"\\n\\nPESAN TERAKHIR USER:\\n\" + $('code').item.json.originalMessage) }}\n    }\n  ],\n  \"temperature\": 0.5,\n  \"max_tokens\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2016,
+        -32
+      ],
+      "id": "55731d64-6bc0-4142-9450-2497d649dfb2",
+      "name": "groq",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI",
+          "mode": "list",
+          "cachedResultName": "Api Keys",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Api Keys",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cbhcb48F0hd8mJP6JSrrVCPqrt0BHONbxHf5ZN4PjDI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2464,
+        112
+      ],
+      "id": "67e7299c-1068-46e3-ba59-cfcae84cabd8",
+      "name": "ambil api",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2dAM3iywgUbVWHW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eda65a6e-6f80-41a5-aa58-7da7ab430a5e",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3136,
+        112
+      ],
+      "id": "49c1d139-bc8e-4cb8-953b-dd3e98e3a003",
+      "name": "If2",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "autoreply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get messages from a specific chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get messages from a specific chat": {
+      "main": [
+        [
+          {
+            "node": "historychat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "simpan ai reply": {
+      "main": [
+        [
+          {
+            "node": "Send chat presence typing indicator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "jawaban_final": {
+      "main": [
+        [
+          {
+            "node": "simpan ai reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "historychat": {
+      "main": [
+        [
+          {
+            "node": "Check_Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Status": {
+      "main": [
+        [
+          {
+            "node": "Filter_AutoReply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter_AutoReply": {
+      "main": [
+        [
+          {
+            "node": "Send chat presence typing indicator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send chat presence typing indicator": {
+      "main": [
+        [
+          {
+            "node": "ambil apikey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send chat presence typing indicator1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "ambil api",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "loop api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ambil apikey": {
+      "main": [
+        [
+          {
+            "node": "loop api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "loop api": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "groq": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ambil api": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "jawaban_final",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "9b3e76f7-a647-4ef6-bf05-0706292bb302",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3f8527de08505419b512434014c071c993cb6c83a0a941ebce74755eda0c34a1"
+  },
+  "id": "myDUKV0Qu55Cy6W8",
+  "tags": []
+}
